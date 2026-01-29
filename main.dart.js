@@ -38393,10 +38393,10 @@ s=p}for(;;)switch(s){case 0:if(n.c){s=1
 break}p=4
 a8=$.VB()
 s=7
-return A.X(a8.U4("assets/\u73fe\u4ee3\u6a19\u9ede\u548c\u5408\u672c (CUVMP TRADITIONAL).json"),$async$tS)
+return A.X(a8.U4("assets/cuvmp.json"),$async$tS)
 case 7:m=d0
 s=8
-return A.X(a8.U4("assets/NEW INTERNATIONAL VERSION.json"),$async$tS)
+return A.X(a8.U4("assets/niv.json"),$async$tS)
 case 8:l=d0
 k=B.cW.fT(m)
 j=B.cW.fT(l)
