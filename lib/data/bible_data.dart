@@ -102,8 +102,8 @@ class BibleData {
 
     try {
       // 讀取這兩個 JSON 檔案
-      final String jsonChiString = await rootBundle.loadString('assets/現代標點和合本 (CUVMP TRADITIONAL).json');
-      final String jsonEngString = await rootBundle.loadString('assets/NEW INTERNATIONAL VERSION.json');
+      final String jsonChiString = await rootBundle.loadString('assets/cuvmp.json');
+      final String jsonEngString = await rootBundle.loadString('assets/niv.json');
 
       final Map<String, dynamic> dataChi = json.decode(jsonChiString);
       final Map<String, dynamic> dataEng = json.decode(jsonEngString);
