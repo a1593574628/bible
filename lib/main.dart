@@ -9,6 +9,7 @@ void main() async {
   // 啟動前先載入資料 (或是顯示 Loading 頁面)
   // 因為檔案有 4MB，可能會花一點點時間，建議加個 Loading 狀態
   // 但為了簡單，先 await
+  await BibleData().loadSettings();  // 載入儲存的設定
   await BibleData().loadData();
 
   runApp(const MyApp());

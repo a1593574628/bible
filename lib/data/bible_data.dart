@@ -1,6 +1,8 @@
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show Colors, Color, ValueNotifier;
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // 顯示模式列舉 (共用)
 enum DisplayMode {
@@ -55,6 +57,50 @@ class BibleData {
   // 全域字體大小狀態 (預設由 UI 決定基準，這裡設為 20.0 作為參考值)
   final ValueNotifier<double> fontSizeNotifier = ValueNotifier(20.0);
 
+  // 投影背景顏色 (預設白色，與目錄相同)
+  final ValueNotifier<Color> backgroundColorNotifier = ValueNotifier(Colors.white);
+  
+  // 投影文字顏色 (預設黑色)
+  final ValueNotifier<Color> textColorNotifier = ValueNotifier(Colors.black);
+
+  // 載入儲存的設定
+  Future<void> loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // 載入字體大小
+    final savedFontSize = prefs.getDouble('fontSize');
+    if (savedFontSize != null) {
+      fontSizeNotifier.value = savedFontSize;
+    }
+    
+    // 載入顯示模式
+    final savedModeIndex = prefs.getInt('displayMode');
+    if (savedModeIndex != null && savedModeIndex >= 0 && savedModeIndex < DisplayMode.values.length) {
+      displayModeNotifier.value = DisplayMode.values[savedModeIndex];
+    }
+
+    // 載入背景顏色
+    final savedBgColor = prefs.getInt('backgroundColor');
+    if (savedBgColor != null) {
+      backgroundColorNotifier.value = Color(savedBgColor);
+    }
+
+    // 載入文字顏色
+    final savedTextColor = prefs.getInt('textColor');
+    if (savedTextColor != null) {
+      textColorNotifier.value = Color(savedTextColor);
+    }
+  }
+
+  // 儲存設定
+  Future<void> saveSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('fontSize', fontSizeNotifier.value);
+    await prefs.setInt('displayMode', displayModeNotifier.value.index);
+    await prefs.setInt('backgroundColor', backgroundColorNotifier.value.toARGB32());
+    await prefs.setInt('textColor', textColorNotifier.value.toARGB32());
+  }
+
   // 書卷名稱對照表 (英文 -> 中文)
   static final Map<String, String> bookNameMap = {
     // Old Testament
@@ -102,7 +148,7 @@ class BibleData {
 
     try {
       // 讀取這兩個 JSON 檔案
-      final String jsonChiString = await rootBundle.loadString('assets/cuvmp.json');
+      final String jsonChiString = await rootBundle.loadString('assets/cuv.json');
       final String jsonEngString = await rootBundle.loadString('assets/niv.json');
 
       final Map<String, dynamic> dataChi = json.decode(jsonChiString);
@@ -112,12 +158,20 @@ class BibleData {
 
       // 依照標準順序建立 BibleBook
       for (String enName in orderedBooks) {
-        if (!dataChi.containsKey(enName) || !dataEng.containsKey(enName)) {
-           print("Missing book data for: $enName");
+        // 取得中文書卷名
+        String chName = bookNameMap[enName] ?? enName;
+        
+        // cuv.json 使用中文書卷名, niv.json 使用英文書卷名
+        if (!dataChi.containsKey(chName)) {
+           print("Missing Chinese book data for: $chName (English: $enName)");
+           continue; 
+        }
+        if (!dataEng.containsKey(enName)) {
+           print("Missing English book data for: $enName");
            continue; 
         }
 
-        final bookDataChi = dataChi[enName] as Map<String, dynamic>;
+        final bookDataChi = dataChi[chName] as Map<String, dynamic>;
         final bookDataEng = dataEng[enName] as Map<String, dynamic>; // structure: "ChapterNum": { "VerseNum": "Text" }
 
         List<List<Verse>> chapters = [];
@@ -156,7 +210,7 @@ class BibleData {
         }
 
         allBooks.add(BibleBook(
-          name: bookNameMap[enName] ?? enName,
+          name: chName,  // 直接使用中文書卷名
           englishName: enName,
           chapters: chapters
         ));
