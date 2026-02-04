@@ -401,7 +401,7 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
                                           textAlign: TextAlign.left,
                                           style: TextStyle(
                                             color: isSelected ? textColor.withOpacity(0.7) : (isHovered ? (bgColor == Colors.white ? Colors.red.shade300 : Colors.yellow.shade200) : textColor.withOpacity(0.5)),
-                                            fontSize: currentFontSize * 1.2,
+                                            fontSize: currentFontSize * 1.6,
                                             fontStyle: FontStyle.italic,
                                             height: 1.4,
                                           ),
