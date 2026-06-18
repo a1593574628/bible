@@ -23,8 +23,12 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
   late ChapterContent _content;
   final List<GlobalKey> _verseKeys = [];
   
-  // 用來追蹤目前滑鼠游標停在哪一節 (Hover effect)
   int? _hoveredIndex;
+  
+  // 記錄上一次點選的索引，用於 Shift+Click 範圍選取
+  int? _lastSelectedIndex; 
+  
+  final ScrollController _scrollController = ScrollController();
   
   // 記錄被選取的經文 Index (0-based)
   final Set<int> _selectedVerses = {};
@@ -59,11 +63,26 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
   }
 
   void _toggleSelection(int index) {
+    final isShiftPressed = HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftLeft) || 
+                           HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftRight);
+
     setState(() {
-      if (_selectedVerses.contains(index)) {
-        _selectedVerses.remove(index);
+      if (isShiftPressed && _lastSelectedIndex != null) {
+        // 範圍選取 (Range Selection)
+        final start = index < _lastSelectedIndex! ? index : _lastSelectedIndex!;
+        final end = index > _lastSelectedIndex! ? index : _lastSelectedIndex!;
+        
+        for (int i = start; i <= end; i++) {
+          _selectedVerses.add(i);
+        }
       } else {
-        _selectedVerses.add(index);
+        // 單選切換 (Single Toggle)
+        if (_selectedVerses.contains(index)) {
+          _selectedVerses.remove(index);
+        } else {
+          _selectedVerses.add(index);
+        }
+        _lastSelectedIndex = index;
       }
     });
   }
@@ -108,6 +127,7 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
     
     setState(() {
       _selectedVerses.clear();
+      _lastSelectedIndex = null; 
     });
   }
 
@@ -346,24 +366,24 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
                       return MouseRegion(
                         onEnter: (_) => setState(() => _hoveredIndex = verseIndex),
                         onExit: (_) => setState(() => _hoveredIndex = null),
-                        child: GestureDetector(
-                          onTap: () => _toggleSelection(verseIndex),
-                          child: Container(
-                            key: _verseKeys[verseIndex],
-                            margin: const EdgeInsets.only(bottom: 24.0),
-                            padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-                            decoration: BoxDecoration(
-                              color: isSelected 
-                                  ? Colors.blue.withOpacity(0.3) 
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(8),
-                              border: isSelected ? Border.all(color: Colors.blueAccent, width: 2) : null,
-                            ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // 節數區塊 (固定寬度，靠左對齊)
-                                SizedBox(
+                        child: Container(
+                          key: _verseKeys[verseIndex],
+                          margin: const EdgeInsets.only(bottom: 24.0),
+                          padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+                          decoration: BoxDecoration(
+                            color: isSelected 
+                                ? Colors.blue.withOpacity(0.3) 
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            border: isSelected ? Border.all(color: Colors.blueAccent, width: 2) : null,
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // 節數區塊 (固定寬度，靠左對齊，點選切換選取)
+                              GestureDetector(
+                                onTap: () => _toggleSelection(verseIndex),
+                                child: SizedBox(
                                   width: 50, // 固定寬度給節數
                                   child: Text(
                                     verseNumStr,
@@ -375,42 +395,44 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
                                     ),
                                   ),
                                 ),
-                                // 經文區塊 (填滿剩餘空間，靠左對齊)
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      // 中文經文
-                                      if (currentMode == DisplayMode.both || currentMode == DisplayMode.chinese)
-                                        Padding(
-                                          padding: const EdgeInsets.only(bottom: 4.0),
-                                          child: Text(
-                                            verse.textChi,
-                                            textAlign: TextAlign.left,
-                                            style: TextStyle(
-                                              color: isSelected ? textColor : (isHovered ? (bgColor == Colors.white ? Colors.red : Colors.yellow) : textColor),
-                                              fontSize: currentFontSize * 1.6,
-                                              height: 1.5,
-                                            ),
-                                          ),
-                                        ),
-                                      // 英文經文
-                                      if (currentMode == DisplayMode.both || currentMode == DisplayMode.english)
-                                        Text(
-                                          verse.textEng,
+                              ),
+                              // 經文區塊 (填滿剩餘空間，靠左對齊)
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // 中文經文 (SelectableText)
+                                    if (currentMode == DisplayMode.both || currentMode == DisplayMode.chinese)
+                                      Padding(
+                                        padding: const EdgeInsets.only(bottom: 4.0),
+                                        child: SelectableText(
+                                          verse.textChi,
                                           textAlign: TextAlign.left,
                                           style: TextStyle(
-                                            color: isSelected ? textColor.withOpacity(0.7) : (isHovered ? (bgColor == Colors.white ? Colors.red.shade300 : Colors.yellow.shade200) : textColor.withOpacity(0.5)),
+                                            color: isSelected ? textColor : (isHovered ? (bgColor == Colors.white ? Colors.red : Colors.yellow) : textColor),
                                             fontSize: currentFontSize * 1.6,
-                                            fontStyle: FontStyle.italic,
-                                            height: 1.4,
+                                            height: 1.5,
                                           ),
+                                          onTap: () => _toggleSelection(verseIndex),
                                         ),
-                                    ],
-                                  ),
+                                      ),
+                                    // 英文經文 (SelectableText)
+                                    if (currentMode == DisplayMode.both || currentMode == DisplayMode.english)
+                                      SelectableText(
+                                        verse.textEng,
+                                        textAlign: TextAlign.left,
+                                        style: TextStyle(
+                                          color: isSelected ? textColor.withOpacity(0.7) : (isHovered ? (bgColor == Colors.white ? Colors.red.shade300 : Colors.yellow.shade200) : textColor.withOpacity(0.5)),
+                                          fontSize: currentFontSize * 1.6,
+                                          fontStyle: FontStyle.italic,
+                                          height: 1.4,
+                                        ),
+                                        onTap: () => _toggleSelection(verseIndex),
+                                      ),
+                                  ],
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       );
